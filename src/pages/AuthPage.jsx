@@ -57,8 +57,7 @@ export function LoginPage() {
     if (!validate()) return
     setLoading(true)
     setApiError('')
-    await new Promise(r => setTimeout(r, 600))
-    const result = login(form)
+    const result = await login(form)
     setLoading(false)
     if (result.error) { setApiError(result.error); return }
     navigate(from, { replace: true })
@@ -199,11 +198,11 @@ export function RegisterPage() {
     if (!validate()) return
     setLoading(true)
     setApiError('')
-    await new Promise(r => setTimeout(r, 700))
-    const result = register(form)
+    const result = await register(form)
     setLoading(false)
     if (result.error) { setApiError(result.error); return }
-    navigate(from, { replace: true })
+    // Supabase may require email confirmation — show a message
+    if (result.success) navigate(from, { replace: true })
   }
 
   const strength = form.password.length === 0 ? 0 : form.password.length < 6 ? 1 : form.password.length < 10 ? 2 : 3

@@ -161,7 +161,7 @@ export default function Navbar() {
                 <button onClick={() => setUserMenu(!userMenu)}
                   className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-display font-medium transition-all hover:scale-105"
                   style={{ background: 'linear-gradient(135deg, var(--gold-pale), var(--cream-deep))', border: '1.5px solid rgba(184,146,42,0.3)', color: 'var(--gold)' }}>
-                  {user.name?.[0]?.toUpperCase() || 'U'}
+                  {(user.user_metadata?.name?.[0] || user.email?.[0] || 'U').toUpperCase()}
                 </button>
                 <AnimatePresence>
                   {userMenu && (
@@ -170,7 +170,7 @@ export default function Navbar() {
                       className="absolute right-0 top-full mt-2 w-52 rounded-2xl overflow-hidden"
                       style={{ background: '#fff', border: '1px solid rgba(184,146,42,0.15)', boxShadow: '0 16px 48px rgba(30,26,20,0.12)' }}>
                       <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
-                        <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{user.name}</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{user.user_metadata?.name || user.email?.split('@')[0]}</p>
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{user.email}</p>
                       </div>
                       {[

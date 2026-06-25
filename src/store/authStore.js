@@ -1,51 +1,50 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { supabase } from '../lib/supabase'
 
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
-      user: null,
-      users: [], // local user registry
+export const useAuthStore = create((set, get) => ({
+  user: null,
+  loading: true, // true while checking existing session on mount
 
-      register: ({ name, email, password, phone }) => {
-        const existing = get().users.find(u => u.email === email)
-        if (existing) return { error: 'An account with this email already exists.' }
-        const newUser = {
-          id: Date.now(),
-          name,
-          email,
-          phone: phone || '',
-          password, // in real app: hashed
-          createdAt: new Date().toISOString(),
-          orders: [],
-          wishlist: [],
-        }
-        set({ users: [...get().users, newUser], user: { ...newUser, password: undefined } })
-        return { success: true }
+  // Call once on app mount to restore session
+  init: async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    set({ user: session?.user ?? null, loading: false })
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      set({ user: session?.user ?? null })
+    })
+  },
+
+  register: async ({ name, email, password, phone }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password, // Supabase hashes this with bcrypt — never stored plain
+      options: {
+        data: { name, phone: phone || '' }, // stored in user_metadata
       },
+    })
+    if (error) return { error: error.message }
+    set({ user: data.user })
+    return { success: true }
+  },
 
-      login: ({ email, password }) => {
-        const found = get().users.find(u => u.email === email && u.password === password)
-        if (!found) return { error: 'Invalid email or password.' }
-        set({ user: { ...found, password: undefined } })
-        return { success: true }
-      },
+  login: async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) return { error: 'Invalid email or password.' }
+    set({ user: data.user })
+    return { success: true }
+  },
 
-      logout: () => set({ user: null }),
+  logout: async () => {
+    await supabase.auth.signOut()
+    set({ user: null })
+  },
 
-      updateProfile: (data) => {
-        const user = get().user
-        if (!user) return
-        const updated = { ...user, ...data }
-        set({
-          user: updated,
-          users: get().users.map(u => u.id === user.id ? { ...u, ...data } : u),
-        })
-      },
-    }),
-    {
-      name: 'nama-auth',
-      partialize: (state) => ({ user: state.user, users: state.users }),
-    }
-  )
-)
+  updateProfile: async (data) => {
+    const { error } = await supabase.auth.updateUser({ data })
+    if (error) return { error: error.message }
+    const user = get().user
+    set({ user: { ...user, user_metadata: { ...user?.user_metadata, ...data } } })
+    return { success: true }
+  },
+}))
