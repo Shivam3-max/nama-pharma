@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { User, Package, Heart, LogOut, Edit2, Save, X, ChevronRight, MapPin, Phone, Mail } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { User, Package, Heart, LogOut, Edit2, Save, X, ChevronRight, MapPin, Phone, Mail, RefreshCw, Pause, XCircle } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useOrdersStore } from '../store/ordersStore'
+import { useSubscriptionsStore } from '../store/subscriptionsStore'
 import { useAdminStore } from '../store/adminStore'
 
 const TABS = [
-  { key: 'orders',    label: 'My Orders', icon: Package },
-  { key: 'profile',   label: 'Profile',   icon: User },
-  { key: 'addresses', label: 'Addresses', icon: MapPin },
-  { key: 'wishlist',  label: 'Wishlist',  icon: Heart },
+  { key: 'orders',        label: 'My Orders',     icon: Package },
+  { key: 'subscriptions', label: 'Subscriptions', icon: RefreshCw },
+  { key: 'profile',       label: 'Profile',       icon: User },
+  { key: 'addresses',     label: 'Addresses',     icon: MapPin },
+  { key: 'wishlist',      label: 'Wishlist',      icon: Heart },
 ]
 
 const STATUS_STYLES = {
@@ -24,6 +26,7 @@ const STATUS_STYLES = {
 export default function AccountPage() {
   const { user, logout, updateProfile, loading } = useAuthStore()
   const { orders, fetchOrders, loading: ordersLoading } = useOrdersStore()
+  const { subscriptions, fetchSubscriptions, updateStatus } = useSubscriptionsStore()
   const { products } = useAdminStore()
 
   const [tab, setTab] = useState('orders')
@@ -34,7 +37,7 @@ export default function AccountPage() {
   const [saveMsg, setSaveMsg] = useState('')
 
   useEffect(() => {
-    if (user) fetchOrders()
+    if (user) { fetchOrders(); fetchSubscriptions() }
   }, [user?.id])
 
   // Show loading while session is being restored
@@ -209,6 +212,85 @@ export default function AccountPage() {
                       </p>
                     </div>
                   </div>
+                </motion.div>
+              )}
+
+              {/* Subscriptions */}
+              {tab === 'subscriptions' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <h2 className="font-display font-light text-xl mb-5" style={{ color: 'var(--ink)' }}>My Subscriptions</h2>
+                  {subscriptions.length === 0 ? (
+                    <div className="text-center py-16 rounded-2xl" style={{ background: '#fff', border: '1.5px dashed rgba(184,146,42,0.25)' }}>
+                      <RefreshCw size={36} className="mx-auto mb-3 opacity-30" />
+                      <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>No active subscriptions</p>
+                      <p className="text-xs mb-5" style={{ color: 'var(--text-light)' }}>Subscribe to a product for automatic monthly delivery and save up to 20%</p>
+                      <Link to="/shop" className="btn-gold py-2.5 px-6 text-xs inline-flex items-center gap-1.5">Browse Products</Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {subscriptions.map(sub => {
+                        const statusStyle = {
+                          active:    { bg: 'rgba(74,103,65,0.1)',  color: 'var(--sage)' },
+                          paused:    { bg: 'rgba(184,146,42,0.1)', color: 'var(--gold)' },
+                          cancelled: { bg: 'rgba(220,38,38,0.08)', color: '#DC2626' },
+                        }[sub.status] || {}
+                        return (
+                          <div key={sub.id} className="rounded-2xl p-5" style={{ background: '#fff', border: '1px solid rgba(184,146,42,0.1)' }}>
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <p className="font-medium text-sm" style={{ color: 'var(--ink)' }}>{sub.product_name}</p>
+                                {sub.variant && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub.variant}</p>}
+                              </div>
+                              <span className="text-[11px] px-2.5 py-1 rounded-full font-medium capitalize"
+                                style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                                {sub.status}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 mb-4">
+                              {[
+                                ['Frequency', sub.frequency === 'monthly' ? 'Every Month' : sub.frequency === 'bimonthly' ? 'Every 2 Months' : 'Every 3 Months'],
+                                ['Qty', sub.quantity],
+                                ['Price', `₹${sub.price?.toLocaleString()}`],
+                              ].map(([l, v]) => (
+                                <div key={l} className="p-2.5 rounded-xl text-center" style={{ background: 'var(--cream)' }}>
+                                  <p className="text-[10px] mb-0.5" style={{ color: 'var(--text-light)' }}>{l}</p>
+                                  <p className="text-xs font-medium" style={{ color: 'var(--ink)' }}>{v}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {sub.next_delivery && sub.status === 'active' && (
+                              <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                                Next delivery: <strong style={{ color: 'var(--sage)' }}>{sub.next_delivery}</strong>
+                              </p>
+                            )}
+                            {sub.status !== 'cancelled' && (
+                              <div className="flex gap-2">
+                                {sub.status === 'active' && (
+                                  <button onClick={() => updateStatus(sub.id, 'paused')}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all"
+                                    style={{ background: 'rgba(184,146,42,0.1)', color: 'var(--gold)' }}>
+                                    <Pause size={11} /> Pause
+                                  </button>
+                                )}
+                                {sub.status === 'paused' && (
+                                  <button onClick={() => updateStatus(sub.id, 'active')}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all btn-sage"
+                                    style={{ padding: '6px 12px' }}>
+                                    <RefreshCw size={11} /> Resume
+                                  </button>
+                                )}
+                                <button onClick={() => { if (window.confirm('Cancel this subscription?')) updateStatus(sub.id, 'cancelled') }}
+                                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all"
+                                  style={{ background: 'rgba(220,38,38,0.08)', color: '#DC2626' }}>
+                                  <XCircle size={11} /> Cancel
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </motion.div>
               )}
 

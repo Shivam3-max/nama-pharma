@@ -58,6 +58,7 @@ export default function Footer() {
             <h4 className="text-xs font-medium tracking-[0.2em] uppercase mb-6" style={{ color: 'var(--gold)' }}>Customer Support</h4>
             <ul className="space-y-3">
               {[
+                { label: 'Track My Order', href: '/track-order' },
                 { label: 'Shipping & Returns', href: '/shipping' },
                 { label: 'Privacy Policy', href: '/privacy' },
                 { label: 'Terms & Conditions', href: '/terms' },

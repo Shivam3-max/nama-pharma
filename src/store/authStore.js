@@ -9,7 +9,6 @@ export const useAuthStore = create((set, get) => ({
   user: storedUser(),
   loading: false,
 
-  // Verify token is still valid on app boot
   init: async () => {
     const token = localStorage.getItem('nama_token')
     if (!token) { set({ user: null }); return }
@@ -22,6 +21,13 @@ export const useAuthStore = create((set, get) => ({
       localStorage.removeItem('nama_user')
       set({ user: null })
     }
+  },
+
+  // Called after Google OAuth callback sets token in URL hash
+  loginWithToken: (token, user) => {
+    localStorage.setItem('nama_token', token)
+    localStorage.setItem('nama_user', JSON.stringify(user))
+    set({ user })
   },
 
   register: async ({ name, email, password, phone }) => {
@@ -47,6 +53,36 @@ export const useAuthStore = create((set, get) => ({
     localStorage.removeItem('nama_token')
     localStorage.removeItem('nama_user')
     set({ user: null })
+  },
+
+  forgotPassword: async (email) => {
+    const { ok, data } = await api.post('/auth/forgot.php', { email })
+    if (!ok) return { error: data.error || 'Failed to send reset email' }
+    return { success: true }
+  },
+
+  resetPassword: async (token, password) => {
+    const { ok, data } = await api.post('/auth/reset.php', { token, password })
+    if (!ok) return { error: data.error || 'Reset failed' }
+    localStorage.setItem('nama_token', data.token)
+    localStorage.setItem('nama_user', JSON.stringify(data.user))
+    set({ user: data.user })
+    return { success: true }
+  },
+
+  sendOtp: async (phone) => {
+    const { ok, data } = await api.post('/auth/send-otp.php', { phone })
+    if (!ok) return { error: data.error || 'Failed to send OTP' }
+    return { success: true, phone: data.phone }
+  },
+
+  verifyOtp: async (phone, otp, name) => {
+    const { ok, data } = await api.post('/auth/verify-otp.php', { phone, otp, name })
+    if (!ok) return { error: data.error || 'Invalid OTP' }
+    localStorage.setItem('nama_token', data.token)
+    localStorage.setItem('nama_user', JSON.stringify(data.user))
+    set({ user: data.user })
+    return { success: true }
   },
 
   updateProfile: async (updates) => {

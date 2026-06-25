@@ -17,8 +17,9 @@ import FAQ from './pages/FAQ'
 import Contact from './pages/Contact'
 import { Shipping, Privacy, Terms, WhyGoldBull, WhyMajoon } from './pages/StaticPages'
 import { BlogList, BlogPost } from './pages/BlogPage'
-import { LoginPage, RegisterPage } from './pages/AuthPage'
+import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage, OAuthCallbackPage } from './pages/AuthPage'
 import AccountPage from './pages/AccountPage'
+import TrackOrderPage from './pages/TrackOrderPage'
 
 import AdminLayout from './pages/admin/AdminLayout'
 import Dashboard from './pages/admin/Dashboard'
@@ -102,7 +103,11 @@ export default function App() {
         <Route path="/blog/:slug" element={<PublicLayout><BlogPost /></PublicLayout>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/auth/callback" element={<OAuthCallbackPage />} />
         <Route path="/account" element={<PublicLayout><AccountPage /></PublicLayout>} />
+        <Route path="/track-order" element={<PublicLayout><TrackOrderPage /></PublicLayout>} />
       </Routes>
     </div>
   )
