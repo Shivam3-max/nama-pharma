@@ -34,7 +34,7 @@ export default function AccountPage() {
   const [saveMsg, setSaveMsg] = useState('')
 
   useEffect(() => {
-    if (user?.id) fetchOrders(user.id)
+    if (user) fetchOrders()
   }, [user?.id])
 
   // Show loading while session is being restored

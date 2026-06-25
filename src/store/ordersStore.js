@@ -1,43 +1,27 @@
 import { create } from 'zustand'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
 
 export const useOrdersStore = create((set, get) => ({
   orders: [],
   loading: false,
 
-  // Fetch orders for the logged-in user
-  fetchOrders: async (userId) => {
-    if (!userId) return
+  fetchOrders: async () => {
     set({ loading: true })
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-    if (!error) set({ orders: data || [] })
+    const { ok, data } = await api.get('/orders/list.php')
+    if (ok) set({ orders: data.orders || [] })
     set({ loading: false })
   },
 
-  // Place a new order — called after successful payment
-  placeOrder: async ({ userId, items, total, address, paymentMethod, razorpayOrderId }) => {
-    const orderNumber = 'NP-' + Date.now().toString().slice(-6)
-    const { data, error } = await supabase
-      .from('orders')
-      .insert({
-        user_id: userId,
-        order_number: orderNumber,
-        items,           // JSON array: [{ name, qty, price, variant }]
-        total,
-        address,         // JSON: { name, line1, city, state, pincode, phone }
-        payment_method: paymentMethod,
-        razorpay_order_id: razorpayOrderId || null,
-        status: 'confirmed',
-      })
-      .select()
-      .single()
-
-    if (error) return { error: error.message }
-    set({ orders: [data, ...get().orders] })
-    return { success: true, order: data }
+  placeOrder: async ({ items, total, address, paymentMethod, razorpayOrderId }) => {
+    const { ok, data } = await api.post('/orders/create.php', {
+      items,
+      total,
+      address,
+      payment_method: paymentMethod,
+      razorpay_order_id: razorpayOrderId || null,
+    })
+    if (!ok) return { error: data.error || 'Failed to place order' }
+    set({ orders: [data.order, ...get().orders] })
+    return { success: true, order: data.order }
   },
 }))

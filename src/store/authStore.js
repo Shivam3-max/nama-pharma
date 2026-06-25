@@ -1,50 +1,60 @@
 import { create } from 'zustand'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
+
+function storedUser() {
+  try { return JSON.parse(localStorage.getItem('nama_user') || 'null') } catch { return null }
+}
 
 export const useAuthStore = create((set, get) => ({
-  user: null,
-  loading: true, // true while checking existing session on mount
+  user: storedUser(),
+  loading: false,
 
-  // Call once on app mount to restore session
+  // Verify token is still valid on app boot
   init: async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    set({ user: session?.user ?? null, loading: false })
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      set({ user: session?.user ?? null })
-    })
+    const token = localStorage.getItem('nama_token')
+    if (!token) { set({ user: null }); return }
+    const { ok, data } = await api.get('/auth/me.php')
+    if (ok) {
+      localStorage.setItem('nama_user', JSON.stringify(data.user))
+      set({ user: data.user })
+    } else {
+      localStorage.removeItem('nama_token')
+      localStorage.removeItem('nama_user')
+      set({ user: null })
+    }
   },
 
   register: async ({ name, email, password, phone }) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password, // Supabase hashes this with bcrypt — never stored plain
-      options: {
-        data: { name, phone: phone || '' }, // stored in user_metadata
-      },
-    })
-    if (error) return { error: error.message }
+    const { ok, data } = await api.post('/auth/register.php', { name, email, password, phone })
+    if (!ok) return { error: data.error || 'Registration failed' }
+    localStorage.setItem('nama_token', data.token)
+    localStorage.setItem('nama_user', JSON.stringify(data.user))
     set({ user: data.user })
     return { success: true }
   },
 
   login: async ({ email, password }) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: 'Invalid email or password.' }
+    const { ok, data } = await api.post('/auth/login.php', { email, password })
+    if (!ok) return { error: data.error || 'Invalid email or password' }
+    localStorage.setItem('nama_token', data.token)
+    localStorage.setItem('nama_user', JSON.stringify(data.user))
     set({ user: data.user })
     return { success: true }
   },
 
   logout: async () => {
-    await supabase.auth.signOut()
+    await api.post('/auth/logout.php', {})
+    localStorage.removeItem('nama_token')
+    localStorage.removeItem('nama_user')
     set({ user: null })
   },
 
-  updateProfile: async (data) => {
-    const { error } = await supabase.auth.updateUser({ data })
-    if (error) return { error: error.message }
-    const user = get().user
-    set({ user: { ...user, user_metadata: { ...user?.user_metadata, ...data } } })
+  updateProfile: async (updates) => {
+    const { ok, data } = await api.post('/auth/update.php', updates)
+    if (!ok) return { error: data.error || 'Update failed' }
+    const user = { ...get().user, ...data.user }
+    localStorage.setItem('nama_user', JSON.stringify(user))
+    set({ user })
     return { success: true }
   },
 }))
